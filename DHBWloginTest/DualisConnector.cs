@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
+using System.Configuration;
 
 namespace DHBWloginTest
 {
@@ -29,7 +30,6 @@ namespace DHBWloginTest
         List<String> links = new List<String>();
         static string cookie = "cnsc=" + new Random().Next(100000000).ToString();
         string DUALIS_KALENDER_URL = "https://dualis.dhbw.de/scripts/mgrqcgi?APPNAME=CampusNet&PRGNAME=MONTH&ARGUMENTS=";
-
 
         public DualisConnector()
         {
@@ -55,7 +55,7 @@ namespace DHBWloginTest
             for (int i = -monthspast; i < monthsfuture; i++)
             {
                 this.Text = "Loading:" + thisMonth.AddMonths(i).ToString("dd.MM.yyyy");
-                docs += getCalenderMonth(args, thisMonth.AddMonths(i).ToString("dd.MM.yyyy"));
+                docs += Load(DUALIS_KALENDER_URL + args + ",-N000031,-A" + thisMonth.AddMonths(i).ToString("dd.MM.yyyy"));
             }
             File.WriteAllText(@"Q:\docs.html", docs);
             //@"<a title=""(?<start>\d\d:\d\d) - (?<end>\d\d:\d\d) / (?:(?<room>[^/]+) /)? (?<name>[^""]+)""[^>]*>"
@@ -119,27 +119,19 @@ namespace DHBWloginTest
                     new XElement("ftpuser","USER"),
                     new XElement("ftppassword","PASSWORD"),
                     new XElement("ftpserver","example.com"),
-                    new XElement("ftpfilename","dualis")
+                    new XElement("ftpfilename","dualis"),
+                    new XElement("gmailenabled","false"),
+                    new XElement("gmailuser","user@googlemail.com"),
+                    new XElement("gmailpassword","PASSWORD"),
+                    new XComment("Not used at the moment. Do NOT enter your main Calendar ID."),
+                    new XElement("gmailcalendarid","calendarid")
                 )
             );
             doc.Save(config);
             MessageBox.Show(string.Format("Please edit your Settings at:\n{0}", config));
             return false;
         }
-
-        private String getCalenderMonth(String args, String date)
-        {
-            HttpWebRequest conn;
-            try
-            {
-                conn = connect(DUALIS_KALENDER_URL + args + ",-N000031,-A" + date);
-            }
-            catch
-            {
-                return null;
-            }
-            return readResponse(conn);
-        }
+     
         private String readResponse(HttpWebRequest conn)
         {
             String ret = "";
@@ -162,22 +154,20 @@ namespace DHBWloginTest
 
                 HttpWebRequest conn = connect(startUrl);
                 conn.Method = "POST";
-                StreamWriter wr = new StreamWriter(conn.GetRequestStream());
-                wr.Write(data);
-                wr.Close();
-                String header = getHeader(conn);
+                using (StreamWriter wr = new StreamWriter(conn.GetRequestStream()))
+                {
+                    wr.Write(data);
+                    wr.Close();
+                }
 
                 Regex r = new Regex("ARGUMENTS=([^,]+),", RegexOptions.Compiled);
-                Match m = r.Match(header);
+                Match m = r.Match(getHeader(conn));
 
-                if (m != null)
-                {
-                    cookie = m.Groups[1].Value;
-                }
-                if (readResponse(conn).Contains("Benutzername oder Passwort falsch"))
+                if (m == null || readResponse(conn).Contains("Benutzername oder Passwort falsch"))
                 {
                     return null;
                 }
+                cookie = m.Groups[1].Value;
             }
             catch
             {
@@ -185,7 +175,11 @@ namespace DHBWloginTest
             }
             return cookie;
         }
-        private static HttpWebRequest connect(String surl)
+        private String Load(String uri)
+        {
+            return readResponse(connect(uri));
+        }
+        private HttpWebRequest connect(String surl)
         {
             Uri url = new Uri(surl);
             HttpWebRequest conn = (HttpWebRequest)WebRequest.Create(url);
@@ -197,11 +191,13 @@ namespace DHBWloginTest
         }
         private static String getHeader(HttpWebRequest con)
         {
-            HttpWebResponse resp = (HttpWebResponse)con.GetResponse();
             String ret = "";
-            foreach (String field in resp.Headers.AllKeys)
+            using (HttpWebResponse resp = (HttpWebResponse)con.GetResponse())
             {
-                ret += field + " : " + resp.Headers[field] + "\n";
+                foreach (String field in resp.Headers.AllKeys)
+                {
+                    ret += field + " : " + resp.Headers[field] + "\n";
+                }
             }
             return ret;
         }
