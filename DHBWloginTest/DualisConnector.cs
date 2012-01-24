@@ -14,13 +14,14 @@ namespace DHBWloginTest
     delegate void LoadFinished(object sender, WebBrowserDocumentCompletedEventArgs e);
     public partial class DualisConnector : Form
     {
-        string username = "";
-        string password = "";
-        string icalpath = "";
-        string xmlpath = "";
-        string format = "";
-        int monthspast = 1;
-        int monthsfuture = 2;
+        string username = "", password = "";
+        string icalpath = "", xmlpath = "";
+        string format = "both";
+        int monthspast = 2, monthsfuture = 6;
+        bool ftpenabled = false;
+        string ftpuser = "", ftppassword = "", ftpserver = "", ftpfilename = "";
+        bool gmailenabled = false;
+        string gmailuser = "", gmailpassword = "", gmailcalendarid = "";
         string config = "./DHBWloginTest.config";
         WebBrowser wb = new WebBrowser();
         LoadFinished loaded;
@@ -43,6 +44,7 @@ namespace DHBWloginTest
                 progressBar1.MarqueeAnimationSpeed = 200;
                 progressBar1.Style = ProgressBarStyle.Marquee;
                 wb.Navigate(startUrl);
+                //(new Calendar(new List<String>())).SaveToGmail(gmailuser, gmailpassword, gmailcalendarid);
             }
         }
 
@@ -58,6 +60,15 @@ namespace DHBWloginTest
                 format = (from c in xd.Descendants("format") select c.Value).First();
                 monthsfuture = (from c in xd.Descendants("monthsfuture") select Convert.ToInt32(c.Value)).First();
                 monthspast = (from c in xd.Descendants("monthspast") select Convert.ToInt32(c.Value)).First();
+                ftppassword = (from c in xd.Descendants("ftppassword") select c.Value).First();
+                ftpserver = (from c in xd.Descendants("ftpserver") select c.Value).First();
+                ftpuser = (from c in xd.Descendants("ftpuser") select c.Value).First();
+                ftpenabled = (from c in xd.Descendants("ftpenabled") select Convert.ToBoolean(c.Value)).First();
+                ftpfilename = (from c in xd.Descendants("ftpfilename") select c.Value).First();
+                gmailenabled = (from c in xd.Descendants("gmailenabled") select Convert.ToBoolean(c.Value)).First();
+                gmailpassword = (from c in xd.Descendants("gmailpassword") select c.Value).First();
+                gmailuser = (from c in xd.Descendants("gmailuser") select c.Value).First();
+                gmailcalendarid = (from c in xd.Descendants("gmailcalendarid") select c.Value).First();
                 return true;
             }
             XDocument doc = new XDocument(
@@ -70,7 +81,12 @@ namespace DHBWloginTest
                     new XComment("Format to export (xml|ical|both)"),
                     new XElement("format", "both"),
                     new XElement("monthspast", 1),
-                    new XElement("monthsfuture", 2)
+                    new XElement("monthsfuture", 2),
+                    new XElement("ftpenabled",false),
+                    new XElement("ftpuser","USER"),
+                    new XElement("ftppassword","PASSWORD"),
+                    new XElement("ftpserver","example.com"),
+                    new XElement("ftpfilename","dualis")
                 )
             );
             doc.Save(config);
@@ -106,6 +122,13 @@ namespace DHBWloginTest
             {
                 String url = wb.Url.OriginalString;
                 url = url.Replace("MLSSTART", "MONTH") + ",-A" + "###DATE###" + ",-A,-N000000000000000";
+
+                DateTime a = DateTime.Now.AddMonths(-monthspast);
+                DateTime startDate = new DateTime(a.Year, a.Month, 1);
+                a = DateTime.Now.AddMonths(monthsfuture);
+                DateTime endDate = new DateTime(a.Year, a.Month + 1, 1).AddDays(-1);
+
+
                 for (int i = -monthspast; i < monthsfuture; i++) 
                     urls.Add(url.Replace("###DATE###",DateTime.Now.AddDays(1 - DateTime.Now.Day).AddMonths(i).ToString("dd.MM.yyyy")));
                 loaded = new LoadFinished(calendarLoadFinished);
@@ -139,7 +162,16 @@ namespace DHBWloginTest
             }
 
             Calendar c = new Calendar(datesntimes);
+            
             c.SaveToFile(icalpath, xmlpath, format);
+
+            if(ftpenabled) {
+                c.SaveToFTP(ftpfilename,format,ftpserver, ftpuser, ftppassword);
+            }
+            if (gmailenabled)
+            {
+                c.SaveToGmail(gmailuser, gmailpassword, gmailcalendarid);
+            }
         }
     }
 }
