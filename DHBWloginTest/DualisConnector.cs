@@ -11,7 +11,6 @@ using System.Xml.Linq;
 
 namespace DHBWloginTest
 {
-    delegate void LoadFinished(object sender, WebBrowserDocumentCompletedEventArgs e);
     public partial class DualisConnector : Form
     {
         string username = "", password = "";
@@ -23,29 +22,63 @@ namespace DHBWloginTest
         bool gmailenabled = false;
         string gmailuser = "", gmailpassword = "", gmailcalendarid = "";
         string config = "./DHBWloginTest.config";
-        WebBrowser wb = new WebBrowser();
-        LoadFinished loaded;
-        LoadFinished loadFinished;
         private CookieCollection cookies = new CookieCollection();
         private CookieContainer cookieContainer = new CookieContainer();
-        string startUrl = "https://dualis.dhbw.de/scripts/mgrqcgi?APPNAME=CampusNet&PRGNAME=EXTERNALPAGES&ARGUMENTS=-N000000000000001,-N,-Awelcome";
+        string startUrl = "https://dualis.dhbw.de/scripts/mgrqcgi";
         List<String> urls = new List<string>();
         List<String> links = new List<String>();
-        
+        static string cookie = "cnsc=" + new Random().Next(100000000).ToString();
+        string DUALIS_KALENDER_URL = "https://dualis.dhbw.de/scripts/mgrqcgi?APPNAME=CampusNet&PRGNAME=MONTH&ARGUMENTS=";
+
 
         public DualisConnector()
         {
             InitializeComponent();
-            if (InitializeConfig())
+            progressBar1.MarqueeAnimationSpeed = 200;
+            progressBar1.Style = ProgressBarStyle.Marquee;
+            this.Shown += new EventHandler(DualisConnector_Shown);
+        }
+
+        void DualisConnector_Shown(object sender, EventArgs e)
+        {
+            if (!InitializeConfig())
             {
-                loaded = new LoadFinished(indexLoadFinished);
-                loadFinished = (s, ea) => { loaded(s, ea); };
-                wb.DocumentCompleted += new WebBrowserDocumentCompletedEventHandler(loadFinished);
-                progressBar1.MarqueeAnimationSpeed = 200;
-                progressBar1.Style = ProgressBarStyle.Marquee;
-                wb.Navigate(startUrl);
-                //(new Calendar(new List<String>())).SaveToGmail(gmailuser, gmailpassword, gmailcalendarid);
+                return;
             }
+            string args = login(username, password);
+            this.Text = "Eingeloggt:" + args;
+
+            DateTime thisMonth = DateTime.Today.AddDays(1 - DateTime.Today.Day);
+            thisMonth = new DateTime(thisMonth.Year, thisMonth.Month, 1);
+
+            String docs = string.Empty;
+            for (int i = -monthspast; i < monthsfuture; i++)
+            {
+                this.Text = "Loading:" + thisMonth.AddMonths(i).ToString("dd.MM.yyyy");
+                docs += getCalenderMonth(args, thisMonth.AddMonths(i).ToString("dd.MM.yyyy"));
+            }
+            File.WriteAllText(@"Q:\docs.html", docs);
+            //@"<a title=""(?<start>\d\d:\d\d) - (?<end>\d\d:\d\d) / (?:(?<room>[^/]+) /)? (?<name>[^""]+)""[^>]*>"
+            foreach (Match m in Regex.Matches(docs, @"<a title=""([^"":.]{2}[:.][^""]+)""[^>]*>"))
+            {
+                this.Text = "Matching";
+                links.Add(m.Groups[1].Value);
+            }
+
+            Calendar c = new Calendar(links);
+            c.SaveToFile(icalpath, xmlpath, format);
+            this.Text = "Saving to " + icalpath + " / " + xmlpath;
+            if (ftpenabled)
+            {
+                this.Text = "Saving to FTP";
+                c.SaveToFTP(ftpfilename, format, ftpserver, ftpuser, ftppassword);
+            }
+            if (gmailenabled)
+            {
+                this.Text = "Saving to GMail";
+                c.SaveToGmail(gmailuser, gmailpassword, gmailcalendarid);
+            }
+            this.Text = "Finished!";
         }
 
         private bool InitializeConfig()
@@ -94,84 +127,83 @@ namespace DHBWloginTest
             return false;
         }
 
-        void indexLoadFinished(object sender, WebBrowserDocumentCompletedEventArgs e)
+        private String getCalenderMonth(String args, String date)
         {
-            loaded = new LoadFinished(loginLoadFinished);
+            HttpWebRequest conn;
             try
             {
-                HtmlElementCollection es = wb.Document.Forms[0].GetElementsByTagName("input");
-                es.GetElementsByName("usrname")[0].InnerText = username;
-                es.GetElementsByName("pass")[0].InnerText = password;
-                wb.Document.GetElementById("logIn_btn").InvokeMember("Click");
+                conn = connect(DUALIS_KALENDER_URL + args + ",-N000031,-A" + date);
             }
             catch
             {
-                MessageBox.Show("Failed to get Dualis Website", "Network Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Application.Exit();
+                return null;
             }
+            return readResponse(conn);
         }
-
-        void loginLoadFinished(object sender, WebBrowserDocumentCompletedEventArgs e)
+        private String readResponse(HttpWebRequest conn)
         {
-            if (wb.DocumentText.Contains("Benutzername oder Passwort falsch"))
+            String ret = "";
+            using (HttpWebResponse resp = (HttpWebResponse)conn.GetResponse())
             {
-                MessageBox.Show("Benutzername oder Passwort falsch", "Login Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Application.Exit();
-            }
-            if (wb.Url.OriginalString.Contains("MLSSTART"))
-            {
-                String url = wb.Url.OriginalString;
-                url = url.Replace("MLSSTART", "MONTH") + ",-A" + "###DATE###" + ",-A,-N000000000000000";
-
-                DateTime a = DateTime.Now.AddMonths(-monthspast);
-                DateTime startDate = new DateTime(a.Year, a.Month, 1);
-                a = DateTime.Now.AddMonths(monthsfuture);
-                DateTime endDate = new DateTime(a.Year, a.Month + 1, 1).AddDays(-1);
-
-
-                for (int i = -monthspast; i < monthsfuture; i++) 
-                    urls.Add(url.Replace("###DATE###",DateTime.Now.AddDays(1 - DateTime.Now.Day).AddMonths(i).ToString("dd.MM.yyyy")));
-                loaded = new LoadFinished(calendarLoadFinished);
-                wb.Navigate(urls[0]);
-            }
-        }
-
-        void calendarLoadFinished(object sender, WebBrowserDocumentCompletedEventArgs e)
-        {
-            if (urls.Contains(wb.Url.OriginalString))
-            {
-                foreach (HtmlElement element in wb.Document.GetElementsByTagName("a"))
-                    links.Add(element.GetAttribute("title"));
-                urls.Remove(wb.Url.OriginalString);
-                if (urls.Count > 0)     wb.Navigate(urls[0]);
-                else
+                using (StreamReader rd = new StreamReader(resp.GetResponseStream()))
                 {
-                    progressBar1.Style = ProgressBarStyle.Blocks;
-                    HtmlToIcal(links);
-                    this.Close();
-                    return;
+                    ret = rd.ReadToEnd();
                 }
             }
+            return ret;
         }
 
-        void HtmlToIcal(List<String> elements)
+        private String login(String username, String passwort)
         {
-            List<String> datesntimes = new List<String>();
-            foreach (String e in elements ) {
-                if (Regex.IsMatch(e, "^[^\":.]{2}[:.].+$") )    datesntimes.Add(e);
-            }
-
-            Calendar c = new Calendar(datesntimes);
-            
-            c.SaveToFile(icalpath, xmlpath, format);
-
-            if(ftpenabled) {
-                c.SaveToFTP(ftpfilename,format,ftpserver, ftpuser, ftppassword);
-            }
-            if (gmailenabled)
+            String cookie = null;
+            try
             {
-                c.SaveToGmail(gmailuser, gmailpassword, gmailcalendarid);
+                String data = "usrname=" + username + "&pass=" + passwort + "&APPNAME=CampusNet&PRGNAME=LOGINCHECK&ARGUMENTS=clino%2Cusrname%2Cpass%2Cmenuno%2Cpersno%2Cbrowser%2Cplatform&clino=000000000000001&menuno=000000&persno=00000000&browser=&platform=";
+
+                HttpWebRequest conn = connect(startUrl);
+                conn.Method = "POST";
+                StreamWriter wr = new StreamWriter(conn.GetRequestStream());
+                wr.Write(data);
+                wr.Close();
+                String header = getHeader(conn);
+
+                Regex r = new Regex("ARGUMENTS=([^,]+),", RegexOptions.Compiled);
+                Match m = r.Match(header);
+
+                if (m != null)
+                {
+                    cookie = m.Groups[1].Value;
+                }
+                if (readResponse(conn).Contains("Benutzername oder Passwort falsch"))
+                {
+                    return null;
+                }
             }
+            catch
+            {
+                return null;
+            }
+            return cookie;
+        }
+        private static HttpWebRequest connect(String surl)
+        {
+            Uri url = new Uri(surl);
+            HttpWebRequest conn = (HttpWebRequest)WebRequest.Create(url);
+            conn.Headers.Add("Accept-Charset", "UTF-8");
+            conn.ContentType = "application/x-www-form-urlencoded;charset=UTF-8";
+            conn.UserAgent = "Bot";
+            conn.Headers.Add("Cookie", cookie);
+            return conn;
+        }
+        private static String getHeader(HttpWebRequest con)
+        {
+            HttpWebResponse resp = (HttpWebResponse)con.GetResponse();
+            String ret = "";
+            foreach (String field in resp.Headers.AllKeys)
+            {
+                ret += field + " : " + resp.Headers[field] + "\n";
+            }
+            return ret;
         }
     }
 }
