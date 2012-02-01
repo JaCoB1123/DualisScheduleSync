@@ -140,12 +140,7 @@ namespace DHBWloginTest
             }
 
             EventFeed batchResultFeed = (EventFeed)srv.Batch(batchFeed, new Uri(eF.Batch));
-            bool success = true;
-            foreach (EventEntry entry in batchResultFeed.Entries) {
-                if (entry.BatchData.Status.Code != 200 && entry.BatchData.Status.Code != 201) {
-                    success = false;
-                }
-            }
+            bool success =  batchResultFeed.Entries.All(a => a.BatchData.Status.Code == 200 || a.BatchData.Status.Code == 201);
 
             if (!success) {
                 //failed
