@@ -28,7 +28,7 @@ namespace DHBWloginTest
         string startUrl = "https://dualis.dhbw.de/scripts/mgrqcgi";
         List<String> urls = new List<string>();
         List<String> links = new List<String>();
-        static string cookie = "cnsc=" + new Random().Next(100000000).ToString();
+        static string cookie = "cnsc=" + new Random().Next(1000000000).ToString();
         string DUALIS_KALENDER_URL = "https://dualis.dhbw.de/scripts/mgrqcgi?APPNAME=CampusNet&PRGNAME=MONTH&ARGUMENTS=";
 
         public DualisConnector()
@@ -45,8 +45,19 @@ namespace DHBWloginTest
             {
                 return;
             }
-            string args = login(username, password);
-            this.Text = "Eingeloggt:" + args;
+            string args = null;
+            int errors = 0;
+            while (string.IsNullOrEmpty(args) && errors++ < 10)
+            {
+                this.Text = (errors).ToString() +  ". try to login as: " + username;
+                login(username, password);
+            }
+            if (string.IsNullOrEmpty(args))
+            {
+                MessageBox.Show("Login failed!");
+                Close();
+            }
+            this.Text = "Logged in:" + args;
 
             DateTime thisMonth = DateTime.Today.AddDays(1 - DateTime.Today.Day);
             thisMonth = new DateTime(thisMonth.Year, thisMonth.Month, 1);
@@ -57,7 +68,6 @@ namespace DHBWloginTest
                 this.Text = "Loading:" + thisMonth.AddMonths(i).ToString("dd.MM.yyyy");
                 docs += Load(DUALIS_KALENDER_URL + args + ",-N000031,-A" + thisMonth.AddMonths(i).ToString("dd.MM.yyyy"));
             }
-            File.WriteAllText(@"Q:\docs.html", docs);
             //@"<a title=""(?<start>\d\d:\d\d) - (?<end>\d\d:\d\d) / (?:(?<room>[^/]+) /)? (?<name>[^""]+)""[^>]*>"
             foreach (Match m in Regex.Matches(docs, @"<a title=""([^"":.]{2}[:.][^""]+)""[^>]*>"))
             {
@@ -79,6 +89,7 @@ namespace DHBWloginTest
                 c.SaveToGmail(gmailuser, gmailpassword, gmailcalendarid);
             }
             this.Text = "Finished!";
+            Close();
         }
 
         private bool InitializeConfig()
@@ -137,10 +148,10 @@ namespace DHBWloginTest
             String ret = "";
             using (HttpWebResponse resp = (HttpWebResponse)conn.GetResponse())
             {
-                using (StreamReader rd = new StreamReader(resp.GetResponseStream()))
-                {
-                    ret = rd.ReadToEnd();
-                }
+				using (StreamReader rd = new StreamReader(resp.GetResponseStream()))
+				{
+				    ret = rd.ReadToEnd();
+				}
             }
             return ret;
         }
@@ -148,31 +159,31 @@ namespace DHBWloginTest
         private String login(String username, String passwort)
         {
             String cookie = null;
+            String data = "usrname=" + username + "&pass=" + passwort + "&APPNAME=CampusNet&PRGNAME=LOGINCHECK&ARGUMENTS=clino%2Cusrname%2Cpass%2Cmenuno%2Cpersno%2Cbrowser%2Cplatform&clino=000000000000001&menuno=000000&persno=00000000&browser=&platform=";
+
+            HttpWebRequest conn = connect(startUrl);
+            conn.Method = "POST";
             try
             {
-                String data = "usrname=" + username + "&pass=" + passwort + "&APPNAME=CampusNet&PRGNAME=LOGINCHECK&ARGUMENTS=clino%2Cusrname%2Cpass%2Cmenuno%2Cpersno%2Cbrowser%2Cplatform&clino=000000000000001&menuno=000000&persno=00000000&browser=&platform=";
-
-                HttpWebRequest conn = connect(startUrl);
-                conn.Method = "POST";
                 using (StreamWriter wr = new StreamWriter(conn.GetRequestStream()))
                 {
                     wr.Write(data);
                     wr.Close();
                 }
-
-                Regex r = new Regex("ARGUMENTS=([^,]+),", RegexOptions.Compiled);
-                Match m = r.Match(getHeader(conn));
-
-                if (m == null || readResponse(conn).Contains("Benutzername oder Passwort falsch"))
-                {
-                    return null;
-                }
-                cookie = m.Groups[1].Value;
             }
-            catch
+            catch (WebException)
             {
                 return null;
             }
+
+            Regex r = new Regex("ARGUMENTS=([^,]+),", RegexOptions.Compiled);
+            Match m = r.Match(getHeader(conn));
+
+            if (m == null)
+            {
+                return null;
+            }
+            cookie = m.Groups[1].Value;
             return cookie;
         }
         private String Load(String uri)
