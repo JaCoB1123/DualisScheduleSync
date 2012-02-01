@@ -21,7 +21,7 @@ namespace DHBWloginTest
 
         public Calendar(List<String> elements)
         {
-            AddEvent(new Event(DateTime.Today, "P1D", "Created " + DateTime.Now.TimeOfDay.ToString()));
+            AddEvent(new Event(DateTime.Now, DateTime.Now.AddMinutes(1), "Updated DHBW Data"));
 
             DateTime lastDate = DateTime.MinValue;
             foreach (String title in elements)
