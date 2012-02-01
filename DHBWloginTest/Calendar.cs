@@ -42,6 +42,19 @@ namespace DHBWloginTest
             events.Add(e);
         }
 
+        public void Save(String format, bool ftp, bool gmail)
+        {
+            SaveToFile(format);
+            if (ftp)
+            {
+                SaveToFTP(format);
+            }
+            if (gmail)
+            {
+                SaveToGmail();
+            }
+        }
+
         public void SaveToFile(String format)
         {
             if (format == "ics" || format == "both")
