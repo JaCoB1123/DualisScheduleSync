@@ -10,6 +10,7 @@ using System.Net;
 using Google.GData.Calendar;
 using Google.GData.Client;
 using Google.GData.Extensions;
+using System.Configuration;
 
 namespace DHBWloginTest
 {
@@ -41,23 +42,27 @@ namespace DHBWloginTest
             events.Add(e);
         }
 
-        public void SaveToFile(String icalpath, String xmlpath, String format)
+        public void SaveToFile(String format)
         {
             if (format == "ics" || format == "both")
             {
-                File.WriteAllText(icalpath, ToIcal());
+                File.WriteAllText(DualisConnector.getSetting("icalpath"), ToIcal());
             }
             if (format == "xml" || format == "both")
             {
-                File.WriteAllText(xmlpath, ToXml());
+                File.WriteAllText(DualisConnector.getSetting("xmlpath"), ToXml());
             }
         }
-        public void SaveToFTP(String filename, String format, String server, String user, String password)
+        public void SaveToFTP(String format)
         {
+            String filename = DualisConnector.getSetting("ftpfilename"),
+                server = DualisConnector.getSetting("ftpserver"),
+                user = DualisConnector.getSetting("ftpuser"),
+                password = DualisConnector.getSetting("ftppassword");
             if (format == "both")
             {
-                SaveToFTP(filename, "xml", server, user, password);
-                SaveToFTP(filename, "ics", server, user, password);
+                SaveToFTP("xml");
+                SaveToFTP("ics");
                 return;
             }
             FtpWebRequest request = (FtpWebRequest)WebRequest.Create("ftp://"+server+"/"+filename+"."+format);
@@ -120,12 +125,10 @@ namespace DHBWloginTest
             return doc.ToString();
         }
         
-
-
-        public void SaveToGmail(string user, string password, string calendarID)
+        public bool SaveToGmail()
         {
             var srv = new Google.GData.Calendar.CalendarService("GoogleCalendarTest");
-            srv.setUserCredentials(user, password);
+            srv.setUserCredentials(DualisConnector.getSetting("gmailuser"), DualisConnector.getSetting("gmailpassword"));
 
             String calendarUri = ClearGMail(srv);
             EventFeed eF = srv.Query(new EventQuery(calendarUri));
@@ -140,11 +143,7 @@ namespace DHBWloginTest
             }
 
             EventFeed batchResultFeed = (EventFeed)srv.Batch(batchFeed, new Uri(eF.Batch));
-            bool success =  batchResultFeed.Entries.All(a => a.BatchData.Status.Code == 200 || a.BatchData.Status.Code == 201);
-
-            if (!success) {
-                //failed
-            }
+            return batchResultFeed.Entries.All(a => a.BatchData.Status.Code == 200 || a.BatchData.Status.Code == 201);
         }
 
         private static String ClearGMail(CalendarService srv)
@@ -152,11 +151,11 @@ namespace DHBWloginTest
             CalendarQuery cQ = new CalendarQuery("https://www.google.com/calendar/feeds/default/owncalendars/full");
             CalendarFeed cR = srv.Query(cQ);
             foreach (CalendarEntry c in cR.Entries) {
-                if (c.Title.Text == "DHBW") c.Delete();
+                if (c.Title.Text == DualisConnector.getSetting("gmailcalendarname")) c.Delete();
             }
 
             CalendarEntry calendar = new CalendarEntry();
-            calendar.Title.Text = "DHBW";
+            calendar.Title.Text = DualisConnector.getSetting("gmailcalendarname");
             calendar.Summary.Text = "Dieser Kalender enthält den Stundenplan laut Dualis";
             calendar.TimeZone = "Europe/Berlin";
             calendar.Hidden = false;
