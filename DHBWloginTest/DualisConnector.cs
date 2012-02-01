@@ -42,49 +42,26 @@ namespace DHBWloginTest
 			int errors = 0;
 			while (string.IsNullOrEmpty(args) && errors++ < 10)
 			{
-                this.Text = (errors).ToString() + ". try to login as: " + getSetting("username");
-				args = login(); 
+                args = login(); 
 			}
 			if (string.IsNullOrEmpty(args))
 			{
 				MessageBox.Show("Login failed!");
 				Close();
 			}
-			this.Text = "Logged in:" + args;
 
 			DateTime thisMonth = DateTime.Today.AddDays(1 - DateTime.Today.Day);
 			thisMonth = new DateTime(thisMonth.Year, thisMonth.Month, 1);
 
-			String docs = string.Empty;
-			for (int i = -int.Parse(getSetting("monthspast")); 
-                i < int.Parse(getSetting("monthsfuture")); i++)
-			{
-                this.Text = "Loading:" + thisMonth.AddMonths(i).ToShortDateString();
-                docs += loadCalendarMonth(args, thisMonth.AddMonths(i));
-			}
-			//@"<a title=""(?<start>\d\d:\d\d) - (?<end>\d\d:\d\d) / (?:(?<room>[^/]+) /)? (?<name>[^""]+)""[^>]*>"
-
             List<String> links = new List<String>();
+            String docs = loadCalendarMonths(args, thisMonth);
 			foreach (Match m in Regex.Matches(docs, @"<a title=""([^"":.]{2}[:.][^""]+)""[^>]*>"))
 			{
-				this.Text = "Matching";
 				links.Add(m.Groups[1].Value);
 			}
 
-			Calendar c = new Calendar(links);
-			c.SaveToFile(getSetting("format"));
-            this.Text = "Saving to File (" + getSetting("icalpath") + " / " + getSetting("xmlpath") + ")";
-			if (bool.Parse(getSetting("ftpenabled")))
-			{
-				this.Text = "Saving to FTP";
-                c.SaveToFTP(getSetting("format"));
-			}
-			if (bool.Parse(getSetting("gmailenabled")))
-			{
-				this.Text = "Saving to GMail";
-				c.SaveToGmail( );
-			}
-			this.Text = "Finished!";
+            Calendar c = new Calendar(links);
+            c.Save(getSetting("format"), bool.Parse(getSetting("ftpenabled")), bool.Parse(getSetting("gmailenabled")));
 			Close();
 		}
 	 
@@ -103,11 +80,11 @@ namespace DHBWloginTest
 
 		private String login( )
 		{
-			String cookie = null;
 			String data = "usrname=" + getSetting("username") + "&pass=" + getSetting("password") 
-                + "&APPNAME=CampusNet&PRGNAME=LOGINCHECK&ARGUMENTS=clino%2Cusrname%2Cpass%2Cmenuno%2Cpersno%2Cbrowser%2Cplatform&clino=000000000000001&menuno=000000&persno=00000000&browser=&platform=";
+                + "&APPNAME=CampusNet&PRGNAME=LOGINCHECK&ARGUMENTS=clino%2Cusrname%2Cpass%2Cmenuno%2Cpersno%2Cbrowser%2Cplatform"
+                + "&clino=000000000000001&menuno=000000&persno=00000000&browser=&platform=";
 
-			HttpWebRequest conn = connect(startUrl);
+			HttpWebRequest conn = getWebRequest(startUrl);
 			conn.Method = "POST";
 			try
 			{
@@ -122,30 +99,36 @@ namespace DHBWloginTest
 				return null;
 			}
 
-			Regex r = new Regex("ARGUMENTS=([^,]+),", RegexOptions.Compiled);
-			String header = "";
-			using (HttpWebResponse resp = (HttpWebResponse)conn.GetResponse())
-			{
-				foreach (String field in resp.Headers.AllKeys)
-				{
-					header += field + " : " + resp.Headers[field] + "\n";
-				}
-			}
-			Match m = r.Match(header);
+            return getHeader(conn);
+		}
 
-			if (m == null)
-			{
-				return null;
-			}
-			cookie = m.Groups[1].Value;
-			return cookie;
-		}
-        private String loadCalendarMonth(string args, DateTime thisMonth)
+        private static string getHeader(HttpWebRequest conn)
+        {
+            using (HttpWebResponse resp = (HttpWebResponse)conn.GetResponse())
+            {
+                Match m = Regex.Match(resp.Headers.ToString(), "ARGUMENTS=([^,]+),", RegexOptions.Compiled);
+
+                if (m == null)
+                {
+                    return null;
+                }
+
+                return m.Groups[1].Value;
+            }
+        }
+
+        private String loadCalendarMonths(string args, DateTime thisMonth)
 		{
-            String uri = calendarUrl + args + ",-N000031,-A" + thisMonth.ToString("dd.MM.yyyy");
-			return readResponse(connect(uri));
+			String docs = string.Empty;
+			for (int i = -int.Parse(getSetting("monthspast")); i < int.Parse(getSetting("monthsfuture")); i++)
+			{
+                String uri = calendarUrl + args + ",-N000031,-A" + thisMonth.AddMonths(i).ToString("dd.MM.yyyy");
+			    docs += readResponse(getWebRequest(uri));             
+			}
+            return docs;
 		}
-		private HttpWebRequest connect(String surl)
+
+		private HttpWebRequest getWebRequest(String surl)
 		{
 			Uri url = new Uri(surl);
 			HttpWebRequest conn = (HttpWebRequest)WebRequest.Create(url);
