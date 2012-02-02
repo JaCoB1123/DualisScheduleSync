@@ -1,4 +1,4 @@
-﻿namespace DHBWloginTest
+﻿namespace DualisScheduleSync
 {
     partial class DualisConnector
     {

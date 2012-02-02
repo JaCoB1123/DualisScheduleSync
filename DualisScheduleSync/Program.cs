@@ -6,7 +6,7 @@ using System.Net;
 using System.IO;
 using System.Text;
 
-namespace DHBWloginTest
+namespace DualisScheduleSync
 {
     static class Program
     {
