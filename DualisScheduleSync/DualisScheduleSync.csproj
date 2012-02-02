@@ -34,40 +34,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Google.Apis">
-      <HintPath>..\..\GoogleAPIs\Lib\Google.Apis.dll</HintPath>
-    </Reference>
-    <Reference Include="Google.Apis.Calendar.v3">
-      <HintPath>..\..\GoogleAPIs\Services\CalendarService\Google.Apis.Calendar.v3.dll</HintPath>
-    </Reference>
-    <Reference Include="Google.Apis.Tools.CodeGen">
-      <HintPath>..\..\GoogleAPIs\Lib\Google.Apis.Tools.CodeGen.dll</HintPath>
-    </Reference>
     <Reference Include="Google.GData.AccessControl, Version=1.9.0.0, Culture=neutral, PublicKeyToken=b4b8eb9a7afc8328, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Analytics, Version=1.9.0.0, Culture=neutral, PublicKeyToken=9e229226d7996434, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Apps, Version=1.9.0.0, Culture=neutral, PublicKeyToken=e6feebfe441b89cb, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Blogger, Version=1.9.0.0, Culture=neutral, PublicKeyToken=6f8943d33947d761, processorArchitecture=MSIL" />
     <Reference Include="Google.GData.Calendar, Version=1.9.0.0, Culture=neutral, PublicKeyToken=aa6748391206b888, processorArchitecture=MSIL" />
     <Reference Include="Google.GData.Client, Version=1.9.0.0, Culture=neutral, PublicKeyToken=04a59ca9b0273830, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.CodeSearch, Version=1.9.0.0, Culture=neutral, PublicKeyToken=cac30bb7c678972d, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Contacts, Version=1.9.0.0, Culture=neutral, PublicKeyToken=7e065189dd4b982f, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.ContentForShopping, Version=1.9.0.0, Culture=neutral, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Documents, Version=1.9.0.0, Culture=neutral, PublicKeyToken=e4daaad656f19bb9, processorArchitecture=MSIL" />
     <Reference Include="Google.GData.Extensions, Version=1.9.0.0, Culture=neutral, PublicKeyToken=0b4c5df2ebf20876, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Health, Version=1.9.0.0, Culture=neutral, PublicKeyToken=7dc2246c3cef9211, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Photos, Version=1.9.0.0, Culture=neutral, PublicKeyToken=a25b50f2e8e3887a, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Spreadsheets, Version=1.9.0.0, Culture=neutral, PublicKeyToken=3f77feb76ff0d9a1, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.WebmasterTools, Version=1.9.0.0, Culture=neutral, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.YouTube, Version=1.9.0.0, Culture=neutral, PublicKeyToken=af04a32718ae8833, processorArchitecture=MSIL" />
-    <Reference Include="Newtonsoft.Json.Net35">
-      <HintPath>..\..\GoogleAPIs\Lib\Newtonsoft.Json.Net35.dll</HintPath>
-    </Reference>
-    <Reference Include="Newtonsoft.Json.Silverlight">
-      <HintPath>..\..\GoogleAPIs\Lib\Newtonsoft.Json.Silverlight.dll</HintPath>
-    </Reference>
-    <Reference Include="nunit.framework">
-      <HintPath>..\..\GoogleAPIs\Lib\nunit.framework.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
