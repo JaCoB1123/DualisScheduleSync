@@ -9,6 +9,7 @@ using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
+using System.Threading.Tasks;
 
 namespace DualisScheduleSync
 {
@@ -36,7 +37,7 @@ namespace DualisScheduleSync
             return ConfigurationManager.AppSettings[key];
         }
 
-		void DualisConnector_Shown(object sender, EventArgs e)
+		async void  DualisConnector_Shown(object sender, EventArgs e)
 		{
 			string args = null;
 			int errors = 0;
@@ -55,7 +56,7 @@ namespace DualisScheduleSync
 			thisMonth = new DateTime(thisMonth.Year, thisMonth.Month, 1);
 
             List<String> links = new List<String>();
-            String docs = loadCalendarMonths(args, thisMonth);
+            String docs = await loadCalendarMonthsAsync(args, thisMonth);
 			foreach (Match m in Regex.Matches(docs, @"<a title=""([^"":.]{2}[:.][^""]+)""[^>]*>"))
 			{
 				links.Add(m.Groups[1].Value);
@@ -66,14 +67,14 @@ namespace DualisScheduleSync
 			Close();
 		}
 	 
-		private String readResponse(HttpWebRequest conn)
+		private async Task<String> readResponseAsync(HttpWebRequest conn)
 		{
 			String ret = "";
-			using (HttpWebResponse resp = (HttpWebResponse)conn.GetResponse())
+			using (HttpWebResponse resp = (HttpWebResponse)await conn.GetResponseAsync())
 			{
 				using (StreamReader rd = new StreamReader(resp.GetResponseStream()))
 				{
-					ret = rd.ReadToEnd();
+					ret = await rd.ReadToEndAsync();
 				}
 			}
 			return ret;
@@ -118,13 +119,18 @@ namespace DualisScheduleSync
             }
         }
 
-        private String loadCalendarMonths(string args, DateTime thisMonth)
+        private async Task<String> loadCalendarMonthsAsync(string args, DateTime thisMonth)
 		{
 			String docs = string.Empty;
+            List<Task<string>> contents = new List<Task<string>>();
 			for (int i = -int.Parse(getSetting("monthspast")); i < int.Parse(getSetting("monthsfuture")); i++)
 			{
                 String uri = calendarUrl + args + ",-N000031,-A" + thisMonth.AddMonths(i).ToString("dd.MM.yyyy");
-			    docs += readResponse(getWebRequest(uri));             
+                contents.Add(readResponseAsync(getWebRequest(uri)));
+			}
+            foreach(Task<string> content in contents)
+            {
+                docs += await content;
 			}
             return docs;
 		}
