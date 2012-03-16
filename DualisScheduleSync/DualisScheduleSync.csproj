@@ -8,11 +8,12 @@
     <ProjectGuid>{63B637B3-8986-42B0-809D-413C20E2CA16}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DHBWloginTest</RootNamespace>
-    <AssemblyName>DHBWloginTest</AssemblyName>
+    <RootNamespace>DualisScheduleSync</RootNamespace>
+    <AssemblyName>DualisScheduleSync</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <PlatformTarget>x86</PlatformTarget>
@@ -36,10 +37,33 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Google.GData.AccessControl, Version=1.9.0.0, Culture=neutral, PublicKeyToken=b4b8eb9a7afc8328, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Calendar, Version=1.9.0.0, Culture=neutral, PublicKeyToken=aa6748391206b888, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Client, Version=1.9.0.0, Culture=neutral, PublicKeyToken=04a59ca9b0273830, processorArchitecture=MSIL" />
-    <Reference Include="Google.GData.Extensions, Version=1.9.0.0, Culture=neutral, PublicKeyToken=0b4c5df2ebf20876, processorArchitecture=MSIL" />
+    <Reference Include="DotNetOpenAuth">
+      <HintPath>..\DotNetOpenAuth.dll</HintPath>
+    </Reference>
+    <Reference Include="Google.Apis">
+      <HintPath>..\Google.Apis.dll</HintPath>
+    </Reference>
+    <Reference Include="Google.Apis.Authentication.OAuth2">
+      <HintPath>..\Google.Apis.Authentication.OAuth2.dll</HintPath>
+    </Reference>
+    <Reference Include="Google.Apis.Calendar.v3">
+      <HintPath>..\Google.Apis.Calendar.v3.dll</HintPath>
+    </Reference>
+    <Reference Include="Google.Apis.Tools.CodeGen">
+      <HintPath>..\Google.Apis.Tools.CodeGen.dll</HintPath>
+    </Reference>
+    <Reference Include="log4net">
+      <HintPath>..\log4net.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json.Net35">
+      <HintPath>..\Newtonsoft.Json.Net35.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json.Silverlight">
+      <HintPath>..\Newtonsoft.Json.Silverlight.dll</HintPath>
+    </Reference>
+    <Reference Include="nunit.framework">
+      <HintPath>..\nunit.framework.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
@@ -54,19 +78,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Calendar.cs" />
-    <Compile Include="Event.cs" />
-    <Compile Include="DualisConnector.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="DualisConnector.Designer.cs">
-      <DependentUpon>DualisConnector.cs</DependentUpon>
-    </Compile>
+    <Compile Include="DualisScheduleSync.cs" />
     <Compile Include="Helper.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="DualisConnector.resx">
-      <DependentUpon>DualisConnector.cs</DependentUpon>
-    </EmbeddedResource>
+    <Compile Include="Web.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>

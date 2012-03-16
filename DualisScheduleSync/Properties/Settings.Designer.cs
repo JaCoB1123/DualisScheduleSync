@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace DHBWloginTest.Properties {
+namespace DualisScheduleSync.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]

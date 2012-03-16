@@ -7,21 +7,60 @@ using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Xml.Linq;
 using System.Net;
-using Google.GData.Calendar;
-using Google.GData.Client;
-using Google.GData.Extensions;
+using DotNetOpenAuth.OAuth2;
+using Google.Apis.Authentication.OAuth2;
+using Google.Apis.Authentication.OAuth2.DotNetOpenAuth;
+using Google.Apis.Util;
+using Google.Apis.Calendar.v3;
+using Google.Apis.Calendar.v3.Data;
+using Google.Apis.Requests;
 using System.Configuration;
+using System.Diagnostics;
+using System.Threading;
 
 namespace DualisScheduleSync
 {
-    class Calendar
+    class Cal
     {
+
+        public static Event NewEvent(DateTime start, DateTime end, String title)
+        {
+            return NewEvent(start, end, title, null);
+        }
+        public static Event NewEvent(DateTime start, DateTime end, String title, String place)
+        {
+            Event e = new Event();
+            e.Start = new EventDateTime();
+            e.Start.DateTime = start.ToString("yyyy-MM-ddTHH:mm:sszzzz");
+            e.End = new EventDateTime();
+            e.End.DateTime = end.ToString("yyyy-MM-ddTHH:mm:sszzzz");
+
+            if (title.Contains("/") && string.IsNullOrEmpty(place))
+            {
+                String[] s = title.Split('/');
+                e.Location = s[0].Trim();
+                e.Summary = s[1].Trim();
+            }
+            else
+            {
+                e.Summary = title.Trim();
+                e.Location = place ?? string.Empty;
+            }
+
+            e.Creator = new Event.CreatorData();
+            e.Creator.DisplayName = "Jan Bader";
+            e.Creator.Email = "jan@javil.eu";
+
+            return e;
+        }
+
+
         public const String version = "2.0";
         List<Event> events = new List<Event>();
 
-        public Calendar(List<String> elements)
+        public Cal(List<String> elements)
         {
-            AddEvent(new Event(DateTime.Now, DateTime.Now.AddMinutes(1), "Updated DHBW Data"));
+            AddEvent(NewEvent(DateTime.Now, DateTime.Now.AddMinutes(1), "Updated DHBW Data", "Dualis"));
 
             DateTime lastDate = DateTime.MinValue;
             foreach (String title in elements)
@@ -31,14 +70,15 @@ namespace DualisScheduleSync
                 } else {
                     DateTime start = lastDate.Add(TimeSpan.Parse(title.Substring(0, 5)));
                     DateTime end = lastDate.Add(TimeSpan.Parse(title.Substring(8, 5)));
-                    Event e = new Event(start,end,title.Substring(16));
+                    Event e = NewEvent(start,end,title.Substring(16));
                     AddEvent(e);
                     Console.WriteLine(e);
                 }
             }
         }
 
-        public void AddEvent(Event e) {
+        public void AddEvent(Event e)
+        {
             events.Add(e);
         }
 
@@ -59,19 +99,19 @@ namespace DualisScheduleSync
         {
             if (format == "ics" || format == "both")
             {
-                File.WriteAllText(DualisConnector.getSetting("icalpath"), ToIcal());
+                File.WriteAllText(DualisScheduleSync.getSetting("icalpath"), ToIcal());
             }
             if (format == "xml" || format == "both")
             {
-                File.WriteAllText(DualisConnector.getSetting("xmlpath"), ToXml());
+                File.WriteAllText(DualisScheduleSync.getSetting("xmlpath"), ToXml());
             }
         }
         public void SaveToFTP(String format)
         {
-            String filename = DualisConnector.getSetting("ftpfilename"),
-                server = DualisConnector.getSetting("ftpserver"),
-                user = DualisConnector.getSetting("ftpuser"),
-                password = DualisConnector.getSetting("ftppassword");
+            String filename = DualisScheduleSync.getSetting("ftpfilename"),
+                server = DualisScheduleSync.getSetting("ftpserver"),
+                user = DualisScheduleSync.getSetting("ftpuser"),
+                password = DualisScheduleSync.getSetting("ftppassword");
             if (format == "both")
             {
                 SaveToFTP("xml");
@@ -124,13 +164,12 @@ namespace DualisScheduleSync
                 new XDeclaration("1.0", "utf-8", "yes"),
                 new XElement("calendar",
                     from e in events
-                    orderby e.id
+                    orderby e.Start.DateTime
                     select new XElement("event",
-                        new XAttribute("UID", e.uid),
-                        new XAttribute("SUMMARY", e.title),
-                        new XAttribute("DTSTART", e.begin.ToUniversalTime().ToISO()),
-                        new XAttribute("DTEND", (e.end != DateTime.MinValue) ? e.end.ToUniversalTime().ToISO() : ""),
-                        new XAttribute("DURATION", e.duration??"" ),
+                        new XAttribute("ID", e.Id ?? ""),
+                        new XAttribute("SUMMARY", e.Summary),
+                        new XAttribute("DTSTART", e.Start.DateTime),
+                        new XAttribute("DTEND", e.End.DateTime),
                         new XAttribute("DTSTAMP", DateTime.Now.ToISO())
                     )
                 )
@@ -140,68 +179,117 @@ namespace DualisScheduleSync
         
         public bool SaveToGmail()
         {
-            var srv = new Google.GData.Calendar.CalendarService("GoogleCalendarTest");
-            srv.setUserCredentials(DualisConnector.getSetting("gmailuser"), DualisConnector.getSetting("gmailpassword"));
+            var provider = new NativeApplicationClient(GoogleAuthenticationServer.Description);
+            provider.ClientIdentifier = "953955382732.apps.googleusercontent.com";
+            provider.ClientSecret = "mYUQelU9LUiozb-0Qw6l0rBK";
+            var auth = new OAuth2Authenticator<NativeApplicationClient>(provider, GetAuthorization);
 
-            String calendarUri = ClearGMail(srv);
-            if (calendarUri == null)
+            var srv = new Google.Apis.Calendar.v3.CalendarService(auth);
+
+            Calendar calendar = ClearGMail(srv);
+            if (calendar == null)
             {
                 return false;
             }
-            EventFeed eF = srv.Query(new EventQuery(calendarUri));
-            AtomFeed batchFeed = new AtomFeed(eF);
+            
             foreach (Event e in events)
             {
-                EventEntry evt = new EventEntry(e.title, e.title, e.place);
-                evt.Times.Add(new Google.GData.Extensions.When(e.begin, e.end));
-                evt.Authors.Add(new AtomPerson(AtomPersonType.Author, "Jan Bader"));
-                evt.BatchData = new GDataBatchEntryData(GDataBatchOperationType.insert);
-                batchFeed.Entries.Add(evt);
+                srv.Events.Insert(e, calendar.Id).Fetch();
             }
 
-            EventFeed batchResultFeed = (EventFeed)srv.Batch(batchFeed, new Uri(eF.Batch));
-            return batchResultFeed.Entries.All(a => a.BatchData.Status.Code == 200 || a.BatchData.Status.Code == 201);
+            return true;
         }
 
-        private static String ClearGMail(CalendarService srv)
+        private static Calendar ClearGMail(CalendarService srv)
         {
-            CalendarQuery cQ = new CalendarQuery("https://www.google.com/calendar/feeds/default/owncalendars/full");
-            CalendarFeed cR = srv.Query(cQ);
-            CalendarEntry cal = null;
-            foreach (CalendarEntry c in cR.Entries) {
-                if (c.Title.Text == DualisConnector.getSetting("gmailcalendarname"))
+            var a = srv.CalendarList.List().Fetch().Items;
+            string calID = null;
+            foreach (CalendarListEntry c in a)
+            {
+                if (c.Summary == DualisScheduleSync.getSetting("gmailcalendarname"))
                 {
-                    cal = c;
+                    calID = c.Id;
                     break;
                 }
             }
-		    cal.Delete();
-		    cal=null;
-            if (cal == null)
+
+            Calendar calendar = null;
+            if (!string.IsNullOrEmpty(calID))
             {
-                cal = new CalendarEntry();
-                cal.Title.Text = DualisConnector.getSetting("gmailcalendarname");
-                cal.Summary.Text = "Dieser Kalender enthält den Stundenplan laut Dualis";
-                cal.TimeZone = "Europe/Berlin";
-                cal.Hidden = false;
-                cal.Selected = true;
-                cal.Color = "#2952A3";
-                cal.Location = new Where("", "", "Horb am Neckar");
+                calendar = srv.Calendars.Get(calID).Fetch();
+                if (calendar != null)
+                {
+                    var b = srv.Events.List(calendar.Id);
+                    b.MaxResults = 10000;
+                    b.ShowDeleted = false;
+                    Events events = b.Fetch();
+                    if (events != null && events.Items != null)
+                    {
+                        foreach (var evententry in events.Items)
+                        {
+                            srv.Events.Delete(calendar.Id, evententry.Id).Fetch();
+                        }
+                    }
+                }
+            }
+            
+            if (calendar == null)
+            {
+                calendar = new Calendar();
+                calendar.Summary = DualisScheduleSync.getSetting("gmailcalendarname");
+                calendar.Description = "Dieser Kalender enthält den Stundenplan laut Dualis";
+                calendar.TimeZone = "Europe/Berlin";
+                calendar.Location = "Horb am Neckar";
+                calendar = srv.Calendars.Insert(calendar).Fetch();
             }
 
-            //EventQuery eq = new EventQuery(cal.EditUri.Content);
-            //eq.Uri = new Uri(cal.EditUri.Content);
-            //eq.StartDate = DateTime.Today;
-            //EventFeed eR = srv.Query(eq);
-            //foreach (EventEntry e in eR.Entries)
-            //{
-            //    e.Delete();
-            //}
+            return calendar;
+       }
 
+        private static IAuthorizationState GetAuthorization(NativeApplicationClient arg)
+        {
+            IAuthorizationState state = new AuthorizationState(new[] { CalendarService.Scopes.Calendar.GetStringValue() });
+            state.Callback = new Uri(NativeApplicationClient.OutOfBandCallbackUrl);
 
-            Uri postUri = new Uri("https://www.google.com/calendar/feeds/default/owncalendars/full");
-            CalendarEntry createdCalendar = (CalendarEntry)srv.Insert(postUri, cal);
-            return "http://www.google.com/calendar/feeds/" + createdCalendar.EditUri.Content.Split('/').Last() + "/private/full";
+            string path = "Q:\\auth.txt";
+            if (File.Exists(path))
+            {
+                
+                state.RefreshToken = File.ReadAllText(path);
+                arg.RefreshToken(state);
+                //state = arg.ProcessUserAuthorization(state.AccessToken, state);
+            }
+            else
+            {
+
+                Uri authUri = arg.RequestUserAuthorization(state);
+
+                // Request authorization from the user (by opening a browser window):
+                Process.Start(authUri.ToString());
+                Console.Write("  Authorization Code: ");
+                string authCode = string.Empty;
+                int count = 0;
+                while (string.IsNullOrEmpty(authCode) && count < 500)
+                {
+                    foreach (Process proc in Process.GetProcesses())
+                    {
+                        if (proc.MainWindowTitle.StartsWith("Success code="))
+                        {
+                            authCode = proc.MainWindowTitle.Split('=').Last().Split(' ').First();
+                        }
+                    }
+                    Thread.Sleep(50);
+                    Application.DoEvents();
+                    count++;
+                }
+                Console.WriteLine();
+                // Retrieve the access token by using the authorization code:
+                state = arg.ProcessUserAuthorization(authCode, state);
+            }
+
+            File.WriteAllText(path, state.RefreshToken);
+
+            return state;
         }
     }
 }
