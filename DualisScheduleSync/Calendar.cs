@@ -144,6 +144,10 @@ namespace DualisScheduleSync
             srv.setUserCredentials(DualisConnector.getSetting("gmailuser"), DualisConnector.getSetting("gmailpassword"));
 
             String calendarUri = ClearGMail(srv);
+            if (calendarUri == null)
+            {
+                return false;
+            }
             EventFeed eF = srv.Query(new EventQuery(calendarUri));
             AtomFeed batchFeed = new AtomFeed(eF);
             foreach (Event e in events)
@@ -163,21 +167,40 @@ namespace DualisScheduleSync
         {
             CalendarQuery cQ = new CalendarQuery("https://www.google.com/calendar/feeds/default/owncalendars/full");
             CalendarFeed cR = srv.Query(cQ);
+            CalendarEntry cal = null;
             foreach (CalendarEntry c in cR.Entries) {
-                if (c.Title.Text == DualisConnector.getSetting("gmailcalendarname")) c.Delete();
+                if (c.Title.Text == DualisConnector.getSetting("gmailcalendarname"))
+                {
+                    cal = c;
+                    break;
+                }
+            }
+		    cal.Delete();
+		    cal=null;
+            if (cal == null)
+            {
+                cal = new CalendarEntry();
+                cal.Title.Text = DualisConnector.getSetting("gmailcalendarname");
+                cal.Summary.Text = "Dieser Kalender enthält den Stundenplan laut Dualis";
+                cal.TimeZone = "Europe/Berlin";
+                cal.Hidden = false;
+                cal.Selected = true;
+                cal.Color = "#2952A3";
+                cal.Location = new Where("", "", "Horb am Neckar");
             }
 
-            CalendarEntry calendar = new CalendarEntry();
-            calendar.Title.Text = DualisConnector.getSetting("gmailcalendarname");
-            calendar.Summary.Text = "Dieser Kalender enthält den Stundenplan laut Dualis";
-            calendar.TimeZone = "Europe/Berlin";
-            calendar.Hidden = false;
-            calendar.Selected = true;
-            calendar.Color = "#2952A3";
-            calendar.Location = new Where("", "", "Horb am Neckar");
+            //EventQuery eq = new EventQuery(cal.EditUri.Content);
+            //eq.Uri = new Uri(cal.EditUri.Content);
+            //eq.StartDate = DateTime.Today;
+            //EventFeed eR = srv.Query(eq);
+            //foreach (EventEntry e in eR.Entries)
+            //{
+            //    e.Delete();
+            //}
+
 
             Uri postUri = new Uri("https://www.google.com/calendar/feeds/default/owncalendars/full");
-            CalendarEntry createdCalendar = (CalendarEntry)srv.Insert(postUri, calendar);
+            CalendarEntry createdCalendar = (CalendarEntry)srv.Insert(postUri, cal);
             return "http://www.google.com/calendar/feeds/" + createdCalendar.EditUri.Content.Split('/').Last() + "/private/full";
         }
     }
