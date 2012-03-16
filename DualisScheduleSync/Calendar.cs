@@ -252,7 +252,7 @@ namespace DualisScheduleSync
             IAuthorizationState state = new AuthorizationState(new[] { CalendarService.Scopes.Calendar.GetStringValue() });
             state.Callback = new Uri(NativeApplicationClient.OutOfBandCallbackUrl);
 
-            string path = "Q:\\auth.txt";
+            string path = "auth.txt";
             if (File.Exists(path))
             {
                 

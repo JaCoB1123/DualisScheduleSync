@@ -54,7 +54,7 @@ namespace DualisScheduleSync
             n.Text = "DualisScheduleSync";
             n.ContextMenu = contextMenu;
             n.Visible = true;
-            n.Icon = new System.Drawing.Icon(@"D:\Icons\cal.ico");
+            n.Icon = new System.Drawing.Icon(@"cal.ico");
             n.BalloonTipTitle = "Next Sync";
             n.BalloonTipText = "n/a";
 
