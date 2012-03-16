@@ -222,6 +222,7 @@ namespace DualisScheduleSync
                     var b = srv.Events.List(calendar.Id);
                     b.MaxResults = 10000;
                     b.ShowDeleted = false;
+                    b.TimeMin = DualisScheduleSync.thisMonth.AddMonths(-int.Parse(DualisScheduleSync.getSetting("monthspast"))).ToString("yyyy-MM-ddTHH:mm:sszzzz");
                     Events events = b.Fetch();
                     if (events != null && events.Items != null)
                     {

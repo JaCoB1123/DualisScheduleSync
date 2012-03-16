@@ -22,6 +22,14 @@ namespace DualisScheduleSync
         {
             get { return startUrl + "?APPNAME=CampusNet&PRGNAME=MONTH&ARGUMENTS="; }
         }
+        public static DateTime thisMonth
+        {
+            get
+            {
+                DateTime tMonth = DateTime.Today.AddDays(1 - DateTime.Today.Day);
+                return new DateTime(tMonth.Year, tMonth.Month, 1);
+            }
+        }
 
         public string Error { get; private set; }
 
@@ -41,8 +49,6 @@ namespace DualisScheduleSync
                 return false;
 			}
 
-			DateTime thisMonth = DateTime.Today.AddDays(1 - DateTime.Today.Day);
-			thisMonth = new DateTime(thisMonth.Year, thisMonth.Month, 1);
 
             List<String> links = new List<String>();
             String docs = loadCalendarMonths(args, thisMonth);
@@ -80,6 +86,7 @@ namespace DualisScheduleSync
 		{
 			String docs = string.Empty;
 			for (int i = -int.Parse(getSetting("monthspast")); i < int.Parse(getSetting("monthsfuture")); i++) {
+                System.Diagnostics.Debug.WriteLine(thisMonth.AddMonths(i).ToShortDateString());
                 String uri = calendarUrl + args + ",-N000031,-A" + thisMonth.AddMonths(i).ToString("dd.MM.yyyy");
                 docs += Web.LoadHttpText(uri);
 			}
