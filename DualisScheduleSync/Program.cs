@@ -6,6 +6,7 @@ using System.Net;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Net.NetworkInformation;
 
 namespace DualisScheduleSync
 {
@@ -58,7 +59,6 @@ namespace DualisScheduleSync
             n.BalloonTipText = "n/a";
 
             t.Tick += new EventHandler(syncItem_Click);
-            t.Interval = 1000 * 60 * 20;
 
             syncItem_Click(null, null);
 
@@ -73,13 +73,15 @@ namespace DualisScheduleSync
                 t.Stop();
             }
             lastSync.Text = "Last run: " + DateTime.Now.TimeOfDay.ToString("hh\\:mm\\:ss");
-            if (!d.Sync())
+            if (HasConnection() && d.Sync())
             {
-                n.ShowBalloonTip(3000, "Sync Failed", d.Error ?? "Did not provide a reason", ToolTipIcon.Error);
+                n.ShowBalloonTip(3000, "Sync succeeded", "Sync with Dualis done", ToolTipIcon.Info);
+                t.Interval = 1000 * 60 * 30;
             }
             else
             {
-                n.ShowBalloonTip(3000, "Sync succeeded", "Sync with Dualis done", ToolTipIcon.Info);
+                n.ShowBalloonTip(3000, "Sync Failed", d.Error ?? "Did not provide a reason", ToolTipIcon.Error);
+                t.Interval = 1000 * 60 * 5;
             }
             n.BalloonTipText = DateTime.Now.AddMilliseconds(t.Interval).TimeOfDay.ToString("hh\\:mm\\:ss");
             nextSync.Text = "Next run: " + n.BalloonTipText;
@@ -89,6 +91,21 @@ namespace DualisScheduleSync
         private static void exitItem_Click(object sender, EventArgs e)
         {
             Application.Exit();
+        }
+
+        private static bool HasConnection()
+        {
+            Ping myPing = new Ping();
+            String host = "google.com";
+            byte[] buffer = new byte[32];
+            int timeout = 1000;
+            PingOptions pingOptions = new PingOptions();
+            PingReply reply = myPing.Send(host, timeout, buffer, pingOptions);
+            if (reply.Status == IPStatus.Success)
+            {
+                return true;
+            }
+            return false;
         }
     }
 }
