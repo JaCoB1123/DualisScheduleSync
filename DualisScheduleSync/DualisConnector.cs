@@ -48,6 +48,7 @@ namespace DualisScheduleSync
 			{
 				MessageBox.Show("Login failed!");
 				Close();
+                return;
 			}
 
 			DateTime thisMonth = DateTime.Today.AddDays(1 - DateTime.Today.Day);
