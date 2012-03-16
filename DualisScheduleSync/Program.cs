@@ -73,7 +73,12 @@ namespace DualisScheduleSync
                 t.Stop();
             }
             lastSync.Text = "Last run: " + DateTime.Now.TimeOfDay.ToString("hh\\:mm\\:ss");
-            if (HasConnection() && d.Sync())
+            if (!HasConnection())
+            {
+                n.ShowBalloonTip(3000, "Sync Failed", "No internet-connection", ToolTipIcon.Error);
+                t.Interval = 1000 * 60 * 5;
+            }
+            else if (d.Sync())
             {
                 n.ShowBalloonTip(3000, "Sync succeeded", "Sync with Dualis done", ToolTipIcon.Info);
                 t.Interval = 1000 * 60 * 30;
@@ -99,11 +104,19 @@ namespace DualisScheduleSync
             String host = "google.com";
             byte[] buffer = new byte[32];
             int timeout = 1000;
+            PingReply reply = null;
             PingOptions pingOptions = new PingOptions();
-            PingReply reply = myPing.Send(host, timeout, buffer, pingOptions);
-            if (reply.Status == IPStatus.Success)
+            try
             {
-                return true;
+                reply = myPing.Send(host, timeout, buffer, pingOptions);
+                if (reply.Status == IPStatus.Success)
+                {
+                    return true;
+                }
+            }
+            catch (PingException)
+            {
+                return false;
             }
             return false;
         }
